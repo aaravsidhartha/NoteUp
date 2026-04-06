@@ -1,0 +1,75 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NoteUp</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+</head>
+<body>
+    <div id="upload-screen" class="upload-screen">
+        <div class="upload-box">
+            <div class="logo">NoteUp</div>
+            <p class="tagline">Ask questions while you read. Never lose a doubt again.</p>
+            <label for="pdf-input" class="upload-btn">
+                Upload PDF
+                <input type="file" id="pdf-input" accept=".pdf" hidden>
+            </label>
+            <div id="upload-status" class="upload-status"></div>
+        </div>
+    </div>
+    <div id="app" class="app hidden">
+        <div class="pdf-panel" id="pdf-panel">
+            <div class="pdf-toolbar">
+                <button id="prev-page" class="page-btn">Prev</button>
+                <span id="page-info">Page 1</span>
+                <button id="next-page" class="page-btn">Next</button>
+                <span id="pdf-name" class="pdf-name"></span>
+            </div>
+            <div class="pdf-container" id="pdf-container">
+                <img id="pdf-page-img" src="" alt="PDF Page">
+                <div id="ask-tooltip" class="ask-tooltip hidden">
+                    <button id="ask-btn">Ask AI</button>
+                </div>
+            </div>
+        </div>
+        <div class="side-panel" id="side-panel">
+            <div id="section-view" class="panel-view">
+                <div class="panel-header">
+                    <h3 id="panel-pdf-name">My PDF</h3>
+                </div>
+                <div id="sections-list" class="sections-list"></div>
+            </div>
+            <div id="thread-view" class="panel-view hidden">
+                <div class="panel-header">
+                    <button id="back-btn" class="back-btn">Back</button>
+                    <span id="thread-card-type" class="card-type-badge">Question</span>
+                </div>
+                <div class="selected-text-box" id="selected-text-display"></div>
+                <div id="thread-messages" class="thread-messages"></div>
+                <div class="thread-input">
+                    <textarea id="follow-up-input" placeholder="Ask a follow-up..." rows="2"></textarea>
+                    <button id="send-followup-btn">Send</button>
+                </div>
+            </div>
+            <div id="query-view" class="panel-view hidden">
+                <div class="panel-header">
+                    <button id="cancel-query-btn" class="back-btn">Cancel</button>
+                    <span class="panel-title">New Query</span>
+                </div>
+                <div class="selected-text-box" id="query-selected-text"></div>
+                <div class="query-type-selector">
+                    <button class="type-btn active" data-type="question">Question</button>
+                    <button class="type-btn" data-type="note">Note</button>
+                </div>
+                <textarea id="query-input" placeholder="What would you like to ask about this?" rows="4"></textarea>
+                <button id="submit-query-btn" class="submit-btn">Ask AI</button>
+                <div id="query-loading" class="loading hidden">Thinking...</div>
+            </div>
+        </div>
+    </div>
+    <script src="app.js"></script>
+</body>
+</html>
+

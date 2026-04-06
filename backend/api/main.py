@@ -15,7 +15,6 @@ load_dotenv()
 
 app = FastAPI(title="NoteUp API")
 
-# CORS
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -23,13 +22,11 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Gemini client using Vertex AI
 PROJECT_ID = os.getenv("PROJECT_ID", "noteup2")
 REGION = os.getenv("REGION", "us-central1")
 GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
 client = genai.Client(vertexai=True, project=PROJECT_ID, location=REGION)
 
-# In-memory storage
 pdfs_store = {}
 sections_store = {}
 cards_store = {}
@@ -38,8 +35,6 @@ messages_store = {}
 UPLOAD_DIR = "uploads"
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 
-
-# ─── Models ───────────────────────────────────────────────
 
 class QueryRequest(BaseModel):
     card_id: Optional[str] = None
@@ -50,21 +45,14 @@ class QueryRequest(BaseModel):
     question: str
     card_type: str = "question"
 
+
 class MessageRequest(BaseModel):
     card_id: str
     question: str
 
 
-# ─── Routes ───────────────────────────────────────────────
-
-@app.get("/")
-def root():
-    return {"status": "NoteUp API is running"}
-
-
 @app.post("/upload")
 async def upload_pdf(file: UploadFile = File(...)):
-    """Upload a PDF, extract text, split into sections."""
     if not file.filename.endswith(".pdf"):
         raise HTTPException(status_code=400, detail="Only PDF files allowed")
 
@@ -107,7 +95,6 @@ async def upload_pdf(file: UploadFile = File(...)):
 
 
 async def split_into_sections(pdf_id: str, full_text: str, total_pages: int):
-    """Use Gemini to identify sections in the PDF."""
     prompt = f"""
     Analyze this PDF text and identify the main sections or chapters.
     The PDF has {total_pages} pages.
@@ -161,7 +148,6 @@ async def split_into_sections(pdf_id: str, full_text: str, total_pages: int):
 
 @app.get("/pdf/{pdf_id}/page/{page_number}")
 async def get_page_image(pdf_id: str, page_number: int):
-    """Return a specific page of the PDF as an image."""
     file_path = os.path.join(UPLOAD_DIR, f"{pdf_id}.pdf")
     if not os.path.exists(file_path):
         raise HTTPException(status_code=404, detail="PDF not found")
@@ -183,7 +169,6 @@ async def get_page_image(pdf_id: str, page_number: int):
 
 @app.post("/query")
 async def create_query(req: QueryRequest):
-    """Create a new card and get AI answer."""
     section = sections_store.get(req.section_id, {})
     section_title = section.get("title", "Unknown Section")
 
@@ -202,9 +187,13 @@ async def create_query(req: QueryRequest):
     Give a clear, concise answer. Use simple language. If helpful, use bullet points.
     """
 
+    from google.genai import types
     response = client.models.generate_content(
         model=GEMINI_MODEL,
-        contents=prompt
+        contents=prompt,
+        config=types.GenerateContentConfig(
+            tools=[types.Tool(google_search=types.GoogleSearch())]
+        )
     )
     ai_answer = response.text
 
@@ -227,17 +216,14 @@ async def create_query(req: QueryRequest):
     }
     cards_store[card_id] = card
 
-    user_msg_id = str(uuid.uuid4())
-    ai_msg_id = str(uuid.uuid4())
-
-    messages_store[user_msg_id] = {
-        "id": user_msg_id,
+    messages_store[str(uuid.uuid4())] = {
+        "id": str(uuid.uuid4()),
         "card_id": card_id,
         "role": "user",
         "content": req.question
     }
-    messages_store[ai_msg_id] = {
-        "id": ai_msg_id,
+    messages_store[str(uuid.uuid4())] = {
+        "id": str(uuid.uuid4()),
         "card_id": card_id,
         "role": "assistant",
         "content": ai_answer
@@ -254,15 +240,11 @@ async def create_query(req: QueryRequest):
 
 @app.post("/message")
 async def add_message(req: MessageRequest):
-    """Add a follow-up message to an existing card thread."""
     card = cards_store.get(req.card_id)
     if not card:
         raise HTTPException(status_code=404, detail="Card not found")
 
-    history = [
-        m for m in messages_store.values()
-        if m["card_id"] == req.card_id
-    ]
+    history = [m for m in messages_store.values() if m["card_id"] == req.card_id]
 
     conversation = ""
     for msg in history:
@@ -285,23 +267,24 @@ async def add_message(req: MessageRequest):
     Continue helping the student. Be concise and clear.
     """
 
+    from google.genai import types
     response = client.models.generate_content(
         model=GEMINI_MODEL,
-        contents=prompt
+        contents=prompt,
+        config=types.GenerateContentConfig(
+            tools=[types.Tool(google_search=types.GoogleSearch())]
+        )
     )
     ai_answer = response.text
 
-    user_msg_id = str(uuid.uuid4())
-    ai_msg_id = str(uuid.uuid4())
-
-    messages_store[user_msg_id] = {
-        "id": user_msg_id,
+    messages_store[str(uuid.uuid4())] = {
+        "id": str(uuid.uuid4()),
         "card_id": req.card_id,
         "role": "user",
         "content": req.question
     }
-    messages_store[ai_msg_id] = {
-        "id": ai_msg_id,
+    messages_store[str(uuid.uuid4())] = {
+        "id": str(uuid.uuid4()),
         "card_id": req.card_id,
         "role": "assistant",
         "content": ai_answer
@@ -317,41 +300,32 @@ async def add_message(req: MessageRequest):
 
 @app.get("/cards/{pdf_id}")
 async def get_cards(pdf_id: str):
-    """Get all cards for a PDF, grouped by section."""
     sections = [s for s in sections_store.values() if s["pdf_id"] == pdf_id]
     sections.sort(key=lambda x: x["section_order"])
 
     result = []
     for section in sections:
-        section_cards = [
-            c for c in cards_store.values()
-            if c["section_id"] == section["id"]
-        ]
-        result.append({
-            "section": section,
-            "cards": section_cards
-        })
+        section_cards = [c for c in cards_store.values() if c["section_id"] == section["id"]]
+        result.append({"section": section, "cards": section_cards})
 
     return result
 
 
 @app.get("/thread/{card_id}")
 async def get_thread(card_id: str):
-    """Get all messages for a card."""
     card = cards_store.get(card_id)
     if not card:
         raise HTTPException(status_code=404, detail="Card not found")
 
-    messages = [
-        m for m in messages_store.values()
-        if m["card_id"] == card_id
-    ]
+    messages = [m for m in messages_store.values() if m["card_id"] == card_id]
 
-    return {
-        "card": card,
-        "messages": messages
-    }
+    return {"card": card, "messages": messages}
 
 
-# Serve frontend
+@app.get("/health")
+def health():
+    return {"status": "NoteUp API is running"}
+
+
+# Serve frontend — must be last
 app.mount("/", StaticFiles(directory="frontend", html=True), name="frontend")
