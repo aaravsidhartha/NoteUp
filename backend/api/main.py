@@ -52,7 +52,17 @@ async def startup_check():
     print("==========================")
 
 # ── Routes ────────────────────────────────────────────────────────────────────
-@app.get("/")
+@app.get("/health")
+class SimplifyRequest(BaseModel):
+    note_text: str
+
+@app.post("/simplify")
+async def simplify_note(req: SimplifyRequest):
+    simplified = await orchestrator.answer_question(
+        section_title="", selected_text="", page_context="",
+        question=f"Rewrite this study note to be clearer and more concise. Keep all key information. Return ONLY the rewritten note, nothing else. Original note: {req.note_text}"
+    )
+    return {"simplified": simplified}
 def root():
     return {"status": "NoteUp API is running"}
 
@@ -137,6 +147,19 @@ async def create_query(req: QueryRequest):
     section_title = section.get("title", "Unknown Section")
     pdf           = pdfs_store.get(req.pdf_id, {})
     page_context  = pdf.get("pages_text", {}).get(req.page_number, "")
+
+    # Notes don't get an AI response
+    if req.card_type == 'note':
+        card_id = str(uuid.uuid4())
+        card = {
+            "id": card_id, "pdf_id": req.pdf_id, "section_id": req.section_id,
+            "title": req.question[:60] + ("..." if len(req.question) > 60 else ""),
+            "card_type": "note", "selected_text": req.selected_text, "page_number": req.page_number,
+        }
+        cards_store[card_id] = card
+        msg_id = str(uuid.uuid4())
+        messages_store[msg_id] = {"id": msg_id, "card_id": card_id, "role": "user", "content": req.question}
+        return {"card": card, "messages": [{"role": "user", "content": req.question}]}
 
     # A2A call to answer_agent
     ai_answer  = await orchestrator.answer_question(
@@ -227,4 +250,4 @@ async def get_thread(card_id: str):
     messages = [m for m in messages_store.values() if m["card_id"] == card_id]
     return {"card": card, "messages": messages}
 
-app.mount("/", StaticFiles(directory="frontend", html=True), name="frontend")
+app.mount("/", StaticFiles(directory=os.path.join(os.path.dirname(__file__), "..", "..", "frontend"), html=True), name="frontend")

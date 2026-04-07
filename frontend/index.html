@@ -6,6 +6,7 @@
     <title>NoteUp</title>
     <link rel="stylesheet" href="style.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 </head>
 <body>
     <div id="upload-screen" class="upload-screen">
@@ -25,15 +26,13 @@
                 <button id="prev-page" class="page-btn">Prev</button>
                 <span id="page-info">Page 1</span>
                 <button id="next-page" class="page-btn">Next</button>
+                <button id="zoom-out" class="page-btn">−</button>
+                <button id="zoom-in" class="page-btn">+</button>
                 <span id="pdf-name" class="pdf-name"></span>
             </div>
-            <div class="pdf-container" id="pdf-container">
-                <img id="pdf-page-img" src="" alt="PDF Page">
-                <div id="ask-tooltip" class="ask-tooltip hidden">
-                    <button id="ask-btn">Ask AI</button>
-                </div>
-            </div>
+            <div class="pdf-container" id="pdf-container"></div>
         </div>
+        <div id="resizer" class="resizer"></div>
         <div class="side-panel" id="side-panel">
             <div id="section-view" class="panel-view">
                 <div class="panel-header">
@@ -65,6 +64,7 @@
                 </div>
                 <textarea id="query-input" placeholder="What would you like to ask about this?" rows="4"></textarea>
                 <button id="submit-query-btn" class="submit-btn">Ask AI</button>
+                <button id="simplify-btn" class="simplify-btn" style="display:none;">✨ Simplify Note</button>
                 <div id="query-loading" class="loading hidden">Thinking...</div>
             </div>
         </div>
@@ -72,4 +72,3 @@
     <script src="app.js"></script>
 </body>
 </html>
-

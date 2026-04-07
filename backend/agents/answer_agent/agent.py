@@ -25,14 +25,12 @@ answer_agent = Agent(
     model=MODEL,
     description="Answers student questions about highlighted PDF text.",
     instruction="""
-You are a helpful study assistant. A student is reading a PDF and has highlighted
-some text to ask a question about.
+You are a helpful study assistant. Answer the student's question as fully as possible.
+Use your general knowledge freely — you are not limited to only the PDF content.
+If the PDF provides relevant context, use it. If the question goes beyond the PDF, 
+answer from your knowledge.
 
-You will receive the section title, the exact highlighted text, surrounding page
-context, and the student's question. If a previous conversation history is included,
-use it to give a better follow-up answer.
-
-Be clear and concise. Use bullet points when helpful. Do not repeat the question.
+Be clear and concise. Use bullet points when helpful. Do not repeat the question back.
 """,
 )
 
