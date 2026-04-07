@@ -7,7 +7,7 @@ let state = {
     cardType: 'question', pdfDoc: null, scale: 1.5
 };
 
-const uploadScreen    = document.getElementById('upload-screen');
+const homeScreen      = document.getElementById('home-screen');
 const app             = document.getElementById('app');
 const pdfInput        = document.getElementById('pdf-input');
 const uploadStatus    = document.getElementById('upload-status');
@@ -18,6 +18,7 @@ const prevBtn         = document.getElementById('prev-page');
 const nextBtn         = document.getElementById('next-page');
 const zoomInBtn       = document.getElementById('zoom-in');
 const zoomOutBtn      = document.getElementById('zoom-out');
+const homeBtn         = document.getElementById('home-btn');
 const sectionsList    = document.getElementById('sections-list');
 const sectionView     = document.getElementById('section-view');
 const threadView      = document.getElementById('thread-view');
@@ -35,8 +36,85 @@ const submitQueryBtn  = document.getElementById('submit-query-btn');
 const queryLoading    = document.getElementById('query-loading');
 const simplifyBtn     = document.getElementById('simplify-btn');
 const typeButtons     = document.querySelectorAll('.type-btn');
+const pdfLibrary      = document.getElementById('pdf-library');
 
-// ── Upload ───────────────────────────────────────────────────────────────────
+// ── Load library on startup ───────────────────────────────────────────────────
+loadLibrary();
+document.body.classList.add('home-active');
+
+async function loadLibrary() {
+    try {
+        var res = await fetch(API + '/pdfs');
+        var pdfs = await res.json();
+        renderLibrary(pdfs);
+    } catch (err) {
+        console.error('Failed to load library', err);
+    }
+}
+
+function renderLibrary(pdfs) {
+    if (!pdfs || pdfs.length === 0) {
+        pdfLibrary.innerHTML = '<div class="library-empty">No PDFs yet. Upload one to get started.</div>';
+        return;
+    }
+    pdfLibrary.innerHTML = '';
+    pdfs.forEach(function(pdf) {
+        var card = document.createElement('div');
+        card.className = 'library-card';
+        card.innerHTML =
+            '<div class="library-card-icon">📄</div>' +
+            '<div class="library-card-info">' +
+                '<div class="library-card-name">' + pdf.original_name + '</div>' +
+                '<div class="library-card-meta">' + pdf.total_pages + ' pages</div>' +
+            '</div>' +
+            '<button class="library-open-btn">Open →</button>';
+        card.querySelector('.library-open-btn').addEventListener('click', function() {
+            openPdfFromLibrary(pdf);
+        });
+        pdfLibrary.appendChild(card);
+    });
+}
+
+async function openPdfFromLibrary(pdf) {
+    uploadStatus.textContent = 'Loading ' + pdf.original_name + '...';
+    try {
+        var fileRes = await fetch(API + '/pdf-file/' + pdf.id);
+        var blob = await fileRes.blob();
+        var arrayBuffer = await blob.arrayBuffer();
+        state.pdfDoc = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+        state.totalPages = state.pdfDoc.numPages;
+        state.pdfId = pdf.id;
+        state.currentPage = 1;
+        var sectionsRes = await fetch(API + '/sections/' + pdf.id);
+        state.sections = await sectionsRes.json();
+        pdfNameEl.textContent = pdf.original_name;
+        panelPdfName.textContent = pdf.original_name;
+        homeScreen.classList.add('hidden');
+        app.classList.remove('hidden');
+        document.body.classList.remove('home-active');
+        uploadStatus.textContent = '';
+        await renderAllPages();
+        renderSections();
+        var cardsRes = await fetch(API + '/cards/' + state.pdfId);
+        var cardsData = await cardsRes.json();
+        cardsData.forEach(function(item) {
+            item.cards.forEach(function(card) { addCardToPanel(card); });
+        });
+    } catch (err) {
+        uploadStatus.textContent = 'Error loading PDF.';
+        console.error(err);
+    }
+}
+
+// ── Home button ───────────────────────────────────────────────────────────────
+homeBtn.addEventListener('click', function() {
+    app.classList.add('hidden');
+    homeScreen.classList.remove('hidden');
+    document.body.classList.add('home-active');
+    loadLibrary();
+});
+
+// ── Upload ────────────────────────────────────────────────────────────────────
 pdfInput.addEventListener('change', async function(e) {
     var file = e.target.files[0];
     if (!file) return;
@@ -54,59 +132,56 @@ pdfInput.addEventListener('change', async function(e) {
         state.currentPage = 1;
         pdfNameEl.textContent = file.name;
         panelPdfName.textContent = file.name;
-        uploadScreen.classList.add('hidden');
+        homeScreen.classList.add('hidden');
         app.classList.remove('hidden');
+        document.body.classList.remove('home-active');
+        uploadStatus.textContent = '';
         await renderAllPages();
         renderSections();
+        var cardsRes = await fetch(API + '/cards/' + state.pdfId);
+        var cardsData = await cardsRes.json();
+        cardsData.forEach(function(item) {
+            item.cards.forEach(function(card) { addCardToPanel(card); });
+        });
     } catch (err) {
         uploadStatus.textContent = 'Error uploading PDF. Please try again.';
         console.error(err);
     }
 });
 
-// ── Render ALL pages (continuous scroll) ─────────────────────────────────────
+// ── Render ALL pages ──────────────────────────────────────────────────────────
 async function renderAllPages() {
     var container = document.getElementById('pdf-container');
     container.innerHTML = '<div style="color:#888;text-align:center;padding:40px;">Loading pages...</div>';
-    await new Promise(r => setTimeout(r, 10)); // let browser paint loading msg
-
+    await new Promise(r => setTimeout(r, 10));
     container.innerHTML = '';
     container.style.overflowY = 'auto';
     container.style.overflowX = 'auto';
     container.style.background = '#141414';
-
     for (var i = 1; i <= state.totalPages; i++) {
         var page = await state.pdfDoc.getPage(i);
         var viewport = page.getViewport({ scale: state.scale });
-
         var pageWrapper = document.createElement('div');
         pageWrapper.className = 'pdf-page-wrapper';
         pageWrapper.dataset.pageNum = i;
         pageWrapper.style.cssText = 'position:relative;width:' + viewport.width + 'px;margin:10px auto;box-shadow:0 4px 20px rgba(0,0,0,0.5);';
-
         var canvas = document.createElement('canvas');
         canvas.width = viewport.width;
         canvas.height = viewport.height;
         canvas.style.display = 'block';
-
         var overlay = document.createElement('canvas');
         overlay.width = viewport.width;
         overlay.height = viewport.height;
         overlay.style.cssText = 'position:absolute;top:0;left:0;cursor:crosshair;z-index:10;';
-
         pageWrapper.appendChild(canvas);
         pageWrapper.appendChild(overlay);
         container.appendChild(pageWrapper);
-
         await page.render({ canvasContext: canvas.getContext('2d'), viewport: viewport }).promise;
         setupDrawing(overlay, i);
     }
-
     pageInfo.textContent = 'Page 1 of ' + state.totalPages;
     prevBtn.disabled = true;
     nextBtn.disabled = state.totalPages <= 1;
-
-    // Track current page on scroll
     container.addEventListener('scroll', function() {
         var wrappers = container.querySelectorAll('.pdf-page-wrapper');
         var containerMid = container.getBoundingClientRect().top + container.getBoundingClientRect().height / 2;
@@ -139,7 +214,6 @@ function scrollToPage(pageNum) {
 prevBtn.addEventListener('click', function() { if (state.currentPage > 1) scrollToPage(state.currentPage - 1); });
 nextBtn.addEventListener('click', function() { if (state.currentPage < state.totalPages) scrollToPage(state.currentPage + 1); });
 
-// ── Zoom (only re-renders PDF canvases) ──────────────────────────────────────
 zoomInBtn.addEventListener('click', async function() {
     state.scale = Math.min(state.scale + 0.25, 3.5);
     await renderAllPages();
@@ -149,7 +223,7 @@ zoomOutBtn.addEventListener('click', async function() {
     await renderAllPages();
 });
 
-// ── Resizable split panel ────────────────────────────────────────────────────
+// ── Resizable split panel ─────────────────────────────────────────────────────
 var resizer = document.getElementById('resizer');
 var isResizing = false;
 resizer.addEventListener('mousedown', function(e) {
@@ -413,7 +487,6 @@ function openThreadWithMessages(card, messages) {
     messages.forEach(function(msg) { appendMessage(msg.role, msg.content, card.card_type); });
     showThreadView();
     followUpInput.value = '';
-    // Hide follow-up input for notes
     var threadInput = document.querySelector('.thread-input');
     if (threadInput) threadInput.style.display = card.card_type === 'note' ? 'none' : 'flex';
     threadMessages.scrollTop = threadMessages.scrollHeight;
@@ -439,7 +512,6 @@ function appendMessage(role, content, cardType) {
     threadMessages.scrollTop = threadMessages.scrollHeight;
 }
 
-// ── Convert AI Response → Note ────────────────────────────────────────────────
 function convertToNote(content) {
     typeButtons.forEach(function(b) {
         b.classList.remove('active');
@@ -474,7 +546,7 @@ async function sendFollowup() {
         });
         var data = await res.json();
         threadMessages.removeChild(loadingEl);
-        appendMessage('assistant', data.messages[1].content,'question');
+        appendMessage('assistant', data.messages[1].content, 'question');
     } catch (err) {
         loadingEl.textContent = 'Error. Please try again.';
     } finally {

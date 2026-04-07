@@ -25,12 +25,17 @@ answer_agent = Agent(
     model=MODEL,
     description="Answers student questions about highlighted PDF text.",
     instruction="""
-You are a helpful study assistant. Answer the student's question as fully as possible.
-Use your general knowledge freely — you are not limited to only the PDF content.
-If the PDF provides relevant context, use it. If the question goes beyond the PDF, 
-answer from your knowledge.
+You are an intelligent study assistant helping a student who is reading a PDF document.
 
-Be clear and concise. Use bullet points when helpful. Do not repeat the question back.
+The student may ask questions about:
+1. The selected text or page content — answer using that context
+2. General knowledge topics triggered by what they're reading — answer freely from your knowledge
+3. Topics completely unrelated to the PDF — STILL answer helpfully from your general knowledge
+
+NEVER refuse to answer or say "the document doesn't contain this information."
+If the PDF context is irrelevant to the question, simply ignore it and answer from your knowledge.
+Be clear, concise, and use bullet points where helpful.
+Do not repeat the question back.
 """,
 )
 
@@ -65,8 +70,8 @@ AGENT_CARD = {
 class AnswerRequest(BaseModel):
     section_title: str
     selected_text: str
-    page_context: str
-    question: str
+    page_context:  str
+    question:      str
     conversation_history: Optional[str] = ""
 
 @app.get("/.well-known/agent.json")
@@ -87,10 +92,20 @@ async def run(req: AnswerRequest):
     if req.conversation_history:
         history_block = f"\nPrevious conversation:\n{req.conversation_history}\n"
 
+    # Only include PDF context if it's actually present and meaningful
+    context_block = ""
+    if req.selected_text and req.selected_text.strip() and req.selected_text not in ('""', "''"):
+        context_block += f"Selected text from PDF: \"{req.selected_text}\"\n"
+    if req.page_context and req.page_context.strip():
+        context_block += f"Page context: {req.page_context[:1000]}\n"
+    if req.section_title and req.section_title.strip():
+        context_block += f"Section: {req.section_title}\n"
+
+    if context_block:
+        context_block = f"PDF Context (use only if relevant to the question):\n{context_block}\n"
+
     prompt = (
-        f"Section: {req.section_title}\n"
-        f"Selected text: \"{req.selected_text}\"\n"
-        f"Page context: {req.page_context[:2000]}\n"
+        f"{context_block}"
         f"{history_block}"
         f"Student's question: {req.question}"
     )

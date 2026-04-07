@@ -9,20 +9,29 @@
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 </head>
 <body>
-    <div id="upload-screen" class="upload-screen">
-        <div class="upload-box">
+    <div id="home-screen" class="home-screen">
+        <div class="home-header">
             <div class="logo">NoteUp</div>
             <p class="tagline">Ask questions while you read. Never lose a doubt again.</p>
-            <label for="pdf-input" class="upload-btn">
-                Upload PDF
-                <input type="file" id="pdf-input" accept=".pdf" hidden>
-            </label>
+        </div>
+        <div class="home-body">
+            <div class="library-header">
+                <h2>Your PDFs</h2>
+                <label for="pdf-input" class="upload-btn-small">+ Upload New PDF
+                    <input type="file" id="pdf-input" accept=".pdf" hidden>
+                </label>
+            </div>
+            <div id="pdf-library" class="pdf-library">
+                <div class="library-empty">No PDFs yet. Upload one to get started.</div>
+            </div>
             <div id="upload-status" class="upload-status"></div>
         </div>
     </div>
+
     <div id="app" class="app hidden">
         <div class="pdf-panel" id="pdf-panel">
             <div class="pdf-toolbar">
+                <button id="home-btn" class="page-btn">⌂</button>
                 <button id="prev-page" class="page-btn">Prev</button>
                 <span id="page-info">Page 1</span>
                 <button id="next-page" class="page-btn">Next</button>
@@ -64,7 +73,7 @@
                 </div>
                 <textarea id="query-input" placeholder="What would you like to ask about this?" rows="4"></textarea>
                 <button id="submit-query-btn" class="submit-btn">Ask AI</button>
-                <button id="simplify-btn" class="simplify-btn" style="display:none;">✨ Simplify Note</button>
+                <button id="simplify-btn" class="simplify-btn" style="display:none;"> Simplify Note</button>
                 <div id="query-loading" class="loading hidden">Thinking...</div>
             </div>
         </div>

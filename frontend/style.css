@@ -12,6 +12,11 @@ body {
     overflow: hidden;
 }
 
+body.home-active {
+    overflow: auto !important;
+    height: auto !important;
+}
+
 .hidden { display: none !important; }
 
 /* ── Upload Screen ── */
@@ -547,3 +552,21 @@ body {
 .simplify-btn:hover { background: #a78bfa22; border-color: #a78bfa; }
 .simplify-btn:disabled { opacity: 0.5; cursor: not-allowed; }
 .pdf-page-wrapper { display: block; }
+.home-screen { min-height: 100vh; background: #0d0d1a; display: flex; flex-direction: column; align-items: center; padding: 40px 20px; }
+.home-header { text-align: center; margin-bottom: 40px; }
+.home-body { width: 100%; max-width: 700px; }
+.library-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+.library-header h2 { color: #e0e0ff; margin: 0; }
+.upload-btn-small { background: #6c63ff; color: white; padding: 8px 16px; border-radius: 8px; cursor: pointer; font-size: 0.85rem; font-weight: 600; }
+.pdf-library { display: flex; flex-direction: column; gap: 12px; }
+.library-card { background: #1a1a2e; border: 1px solid #2a2a4a; border-radius: 12px; padding: 16px 20px; display: flex; align-items: center; gap: 16px; transition: border-color 0.2s; }
+.library-card:hover { border-color: #6c63ff; }
+.library-card-icon { font-size: 2rem; }
+.library-card-info { flex: 1; }
+.library-card-name { color: #e0e0ff; font-weight: 600; margin-bottom: 4px; }
+.library-card-meta { color: #888; font-size: 0.8rem; }
+.library-open-btn { background: #6c63ff; color: white; border: none; padding: 8px 16px; border-radius: 8px; cursor: pointer; font-weight: 600; white-space: nowrap; }
+.library-open-btn:hover { background: #5a52e0; }
+.library-empty { color: #666; text-align: center; padding: 40px; }
+body.home-active { overflow: auto; height: auto; }
+.home-screen { overflow-y: auto; }
