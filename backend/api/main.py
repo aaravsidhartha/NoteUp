@@ -188,11 +188,12 @@ async def create_query(req: QueryRequest):
         fs_set("messages", msg_id, {"id": msg_id, "card_id": card_id, "role": "user", "content": req.question})
         return {"card": card, "messages": [{"role": "user", "content": req.question}]}
 
-    ai_answer  = await orchestrator.answer_question(
+    ai_answer = await orchestrator.answer_question(
         section_title=section_title,
         selected_text=req.selected_text,
         page_context=page_context,
         question=req.question,
+        pdf_id=req.pdf_id,
     )
     card_title = await orchestrator.generate_card_title(req.question)
 
@@ -243,6 +244,7 @@ async def add_message(req: MessageRequest):
         page_context=page_context,
         question=req.question,
         conversation_history=conversation,
+        pdf_id=card["pdf_id"],
     )
 
     user_msg_id = str(uuid.uuid4())

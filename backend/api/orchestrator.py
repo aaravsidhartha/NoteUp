@@ -48,6 +48,7 @@ class NoteUpOrchestrator:
         page_context: str,
         question: str,
         conversation_history: Optional[str] = "",
+        pdf_id: Optional[str] = "",
     ) -> str:
         """A2A call → answer_agent. Returns the AI answer string."""
         async with httpx.AsyncClient(timeout=TIMEOUT) as client:
@@ -59,6 +60,7 @@ class NoteUpOrchestrator:
                     "page_context": page_context,
                     "question": question,
                     "conversation_history": conversation_history or "",
+                    "pdf_id": pdf_id or "",
                 },
             )
             r.raise_for_status()
