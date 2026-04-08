@@ -409,4 +409,42 @@ async def generate_quiz(req: QuizRequest):
     )
     return {"quiz": quiz}
 
+
+class PdfSummaryRequest(BaseModel):
+    pdf_id: str
+
+@app.post("/summarize-pdf")
+async def summarize_full_pdf(req: PdfSummaryRequest):
+    pdf = fs_get("pdfs", req.pdf_id)
+    if not pdf:
+        raise HTTPException(status_code=404, detail="PDF not found")
+    pages_text = pdf.get("pages_text", {})
+    full_text = ""
+    for k in sorted(pages_text.keys(), key=lambda x: int(x)):
+        full_text += pages_text[k] + "\n"
+        if len(full_text) > 8000:
+            break
+    guide = await orchestrator.answer_question(
+        section_title="", selected_text="", page_context="",
+        question=f"Create a comprehensive study guide summarizing the key topics, concepts, findings, and conclusions of this document. Organize clearly with headings.\n\nDocument content:\n{full_text}"
+    )
+    return {"guide": guide}
+
+@app.post("/quiz-pdf")
+async def quiz_full_pdf(req: PdfSummaryRequest):
+    pdf = fs_get("pdfs", req.pdf_id)
+    if not pdf:
+        raise HTTPException(status_code=404, detail="PDF not found")
+    pages_text = pdf.get("pages_text", {})
+    full_text = ""
+    for k in sorted(pages_text.keys(), key=lambda x: int(x)):
+        full_text += pages_text[k] + "\n"
+        if len(full_text) > 8000:
+            break
+    quiz = await orchestrator.answer_question(
+        section_title="", selected_text="", page_context="",
+        question=f"Generate a quiz with 5 multiple choice questions based on this document. For each question provide: the question, 4 options (A/B/C/D), and the correct answer. Format clearly.\n\nDocument content:\n{full_text}"
+    )
+    return {"quiz": quiz}
+
 app.mount("/", StaticFiles(directory=os.path.join(os.path.dirname(__file__), "..", "..", "frontend"), html=True), name="frontend")

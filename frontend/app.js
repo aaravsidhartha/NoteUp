@@ -88,42 +88,50 @@ async function exportNotes() {
 
 async function generateStudyGuide(mode) {
     if (!state.pdfId) return;
-    var btn = event ? event.target : document.querySelector('[onclick*="generateStudyGuide"]');
-    btn.textContent = 'Generating...'; btn.disabled = true;
+    var modal = document.getElementById('feature-modal');
+    var modalTitle = document.getElementById('modal-title');
+    var modalBody = document.getElementById('modal-body');
+    modalTitle.textContent = 'Study Guide';
+    modalBody.innerHTML = '<p>Generating...</p>';
+    modal.classList.remove('hidden');
     try {
-        var res = await fetch(API + '/study-guide', {
-            method: 'POST', headers: {'Content-Type': 'application/json'},
+        var endpoint = (mode === 'pdf') ? '/summarize-pdf' : '/study-guide';
+        var res = await fetch(API + endpoint, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
             body: JSON.stringify({pdf_id: state.pdfId})
         });
         var data = await res.json();
-        var modal = document.getElementById('feature-modal');
-        var modalTitle = document.getElementById('modal-title');
-        var modalBody = document.getElementById('modal-body');
-        modalTitle.textContent = 'Study Guide';
-        modalBody.innerHTML = marked.parse(data.guide);
-        modal.classList.remove('hidden');
-    } catch(e) { console.error(e); }
-    finally { btn.textContent = '📚 Study Guide'; btn.disabled = false; }
+        modalBody.innerHTML = (data.guide && data.guide.includes('No notes'))
+            ? '<p style="color:#aaa">No notes yet. Add cards first.</p>'
+            : marked.parse(data.guide);
+    } catch(e) {
+        modalBody.innerHTML = '<p style="color:red">Error.</p>';
+    }
 }
 
 async function generateQuiz(mode) {
     if (!state.pdfId) return;
-    var btn = event ? event.target : document.querySelector('[onclick*="generateQuiz"]');
-    btn.textContent = 'Generating...'; btn.disabled = true;
+    var modal = document.getElementById('feature-modal');
+    var modalTitle = document.getElementById('modal-title');
+    var modalBody = document.getElementById('modal-body');
+    modalTitle.textContent = 'Quiz';
+    modalBody.innerHTML = '<p>Generating quiz...</p>';
+    modal.classList.remove('hidden');
     try {
-        var res = await fetch(API + '/quiz', {
-            method: 'POST', headers: {'Content-Type': 'application/json'},
+        var endpoint = (mode === 'pdf') ? '/quiz-pdf' : '/quiz';
+        var res = await fetch(API + endpoint, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
             body: JSON.stringify({pdf_id: state.pdfId})
         });
         var data = await res.json();
-        var modal = document.getElementById('feature-modal');
-        var modalTitle = document.getElementById('modal-title');
-        var modalBody = document.getElementById('modal-body');
-        modalTitle.textContent = 'Quiz';
-        modalBody.innerHTML = marked.parse(data.quiz);
-        modal.classList.remove('hidden');
-    } catch(e) { console.error(e); }
-    finally { btn.textContent = '🧠 Quiz Me'; btn.disabled = false; }
+        modalBody.innerHTML = (data.quiz && data.quiz.includes('No notes'))
+            ? '<p style="color:#aaa">No notes yet. Add cards first.</p>'
+            : marked.parse(data.quiz);
+    } catch(e) {
+        modalBody.innerHTML = '<p style="color:red">Error.</p>';
+    }
 }
 
 async function openPdfFromLibrary(pdf) {
@@ -381,18 +389,22 @@ function renderSections() {
         featureDiv = document.createElement('div');
         featureDiv.id = 'side-feature-btns';
         featureDiv.style.cssText = 'padding:12px;border-bottom:1px solid #2a2a2a;';
-        featureDiv.innerHTML = '<div style="margin-bottom:10px;">' +
-            '<div style="font-size:0.7rem;color:#888;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px;">📋 Summarised Notes</div>' +
-            '<div style="display:flex;gap:6px;">' +
-            '<button onclick="generateStudyGuide(\'pdf\')" style="flex:1;background:#1e1e1e;border:1px solid #2a2a2a;color:#e8e8e8;padding:6px;border-radius:6px;cursor:pointer;font-size:0.75rem;">Entire PDF</button>' +
-            '<button onclick="generateStudyGuide(\'notes\')" style="flex:1;background:#1e1e1e;border:1px solid #2a2a2a;color:#e8e8e8;padding:6px;border-radius:6px;cursor:pointer;font-size:0.75rem;">Notes & Questions</button>' +
-            '</div></div>' +
-            '<div>' +
-            '<div style="font-size:0.7rem;color:#888;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px;">🧠 Quiz Me</div>' +
-            '<div style="display:flex;gap:6px;">' +
-            '<button onclick="generateQuiz(\'pdf\')" style="flex:1;background:#1e1e1e;border:1px solid #2a2a2a;color:#e8e8e8;padding:6px;border-radius:6px;cursor:pointer;font-size:0.75rem;">Entire PDF</button>' +
-            '<button onclick="generateQuiz(\'notes\')" style="flex:1;background:#1e1e1e;border:1px solid #2a2a2a;color:#e8e8e8;padding:6px;border-radius:6px;cursor:pointer;font-size:0.75rem;">Notes & Questions</button>' +
-            '</div></div>';
+        featureDiv.innerHTML = `
+  <div style="margin-bottom:10px;">
+    <div style="font-size:11px;color:#888;margin-bottom:6px;font-weight:600;">SUMMARISE</div>
+    <div style="display:flex;gap:6px;">
+      <button onclick="generateStudyGuide('pdf')" style="flex:1;padding:6px 8px;background:#1e1e2e;border:1px solid #6c63ff;color:#c9c9ff;border-radius:6px;cursor:pointer;font-size:12px;">Entire PDF</button>
+      <button onclick="generateStudyGuide('cards')" style="flex:1;padding:6px 8px;background:#1e1e2e;border:1px solid #6c63ff;color:#c9c9ff;border-radius:6px;cursor:pointer;font-size:12px;">My Notes</button>
+    </div>
+  </div>
+  <div>
+    <div style="font-size:11px;color:#888;margin-bottom:6px;font-weight:600;">QUIZ ME</div>
+    <div style="display:flex;gap:6px;">
+      <button onclick="generateQuiz('pdf')" style="flex:1;padding:6px 8px;background:#1e1e2e;border:1px solid #6c63ff;color:#c9c9ff;border-radius:6px;cursor:pointer;font-size:12px;">Entire PDF</button>
+      <button onclick="generateQuiz('cards')" style="flex:1;padding:6px 8px;background:#1e1e2e;border:1px solid #6c63ff;color:#c9c9ff;border-radius:6px;cursor:pointer;font-size:12px;">My Notes</button>
+    </div>
+  </div>
+`;
         sectionsList.parentElement.insertBefore(featureDiv, sectionsList);
     }
     state.sections.forEach(function(section) {
