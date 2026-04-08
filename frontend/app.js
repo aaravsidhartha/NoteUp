@@ -1,4 +1,4 @@
-const API = 'http://127.0.0.1:8000';
+const API = 'https://noteup-93010491257.us-central1.run.app';
 pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
 
 let state = {
