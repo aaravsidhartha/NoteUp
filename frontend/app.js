@@ -75,6 +75,57 @@ function renderLibrary(pdfs) {
     });
 }
 
+async function exportNotes() {
+    if (!state.pdfId) return;
+    var res = await fetch(API + '/export/' + state.pdfId);
+    var text = await res.text();
+    var blob = new Blob([text], {type: 'text/markdown'});
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement('a');
+    a.href = url; a.download = 'study-notes.md';
+    a.click(); URL.revokeObjectURL(url);
+}
+
+async function generateStudyGuide(mode) {
+    if (!state.pdfId) return;
+    var btn = event ? event.target : document.querySelector('[onclick*="generateStudyGuide"]');
+    btn.textContent = 'Generating...'; btn.disabled = true;
+    try {
+        var res = await fetch(API + '/study-guide', {
+            method: 'POST', headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({pdf_id: state.pdfId})
+        });
+        var data = await res.json();
+        var modal = document.getElementById('feature-modal');
+        var modalTitle = document.getElementById('modal-title');
+        var modalBody = document.getElementById('modal-body');
+        modalTitle.textContent = 'Study Guide';
+        modalBody.innerHTML = marked.parse(data.guide);
+        modal.classList.remove('hidden');
+    } catch(e) { console.error(e); }
+    finally { btn.textContent = '📚 Study Guide'; btn.disabled = false; }
+}
+
+async function generateQuiz(mode) {
+    if (!state.pdfId) return;
+    var btn = event ? event.target : document.querySelector('[onclick*="generateQuiz"]');
+    btn.textContent = 'Generating...'; btn.disabled = true;
+    try {
+        var res = await fetch(API + '/quiz', {
+            method: 'POST', headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({pdf_id: state.pdfId})
+        });
+        var data = await res.json();
+        var modal = document.getElementById('feature-modal');
+        var modalTitle = document.getElementById('modal-title');
+        var modalBody = document.getElementById('modal-body');
+        modalTitle.textContent = 'Quiz';
+        modalBody.innerHTML = marked.parse(data.quiz);
+        modal.classList.remove('hidden');
+    } catch(e) { console.error(e); }
+    finally { btn.textContent = '🧠 Quiz Me'; btn.disabled = false; }
+}
+
 async function openPdfFromLibrary(pdf) {
     uploadStatus.textContent = 'Loading ' + pdf.original_name + '...';
     try {
@@ -92,6 +143,23 @@ async function openPdfFromLibrary(pdf) {
         homeScreen.classList.add('hidden');
         app.classList.remove('hidden');
         document.body.classList.remove('home-active');
+    // Add toolbar buttons if not already there
+    if (!document.getElementById('export-btn')) {
+        var toolbar = document.querySelector('.pdf-toolbar');
+        var btnGroup = document.createElement('div');
+        btnGroup.style.cssText = 'display:flex;gap:6px;margin-left:auto;';
+        btnGroup.innerHTML = '<button id="export-btn" onclick="exportNotes()" style="background:#1e1e1e;border:1px solid #2a2a2a;color:#e8e8e8;padding:5px 10px;border-radius:6px;cursor:pointer;font-size:0.78rem;">⬆ Export</button>';
+        toolbar.appendChild(btnGroup);
+        // Add modal
+        if (!document.getElementById('feature-modal')) {
+            var modal = document.createElement('div');
+            modal.id = 'feature-modal';
+            modal.className = 'hidden';
+            modal.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.7);z-index:99999;display:flex;align-items:center;justify-content:center;';
+            modal.innerHTML = '<div style="background:#1a1a1a;border:1px solid #2a2a2a;border-radius:12px;padding:24px;max-width:700px;width:90%;max-height:80vh;overflow-y:auto;position:relative;"><button onclick="document.getElementById(\'feature-modal\').classList.add(\'hidden\')" style="position:absolute;top:12px;right:12px;background:#2a2a2a;border:none;color:#e8e8e8;padding:4px 10px;border-radius:6px;cursor:pointer;">✕</button><h2 id="modal-title" style="color:#e8e8e8;margin-bottom:16px;"></h2><div id="modal-body" style="color:#c8c8c8;font-size:0.9rem;line-height:1.6;"></div></div>';
+            document.body.appendChild(modal);
+        }
+    }
         uploadStatus.textContent = '';
         await renderAllPages();
         renderSections();
@@ -107,6 +175,8 @@ async function openPdfFromLibrary(pdf) {
 }
 
 // ── Home button ───────────────────────────────────────────────────────────────
+// Add Home label to button
+if (homeBtn) homeBtn.innerHTML = '🏠 Home';
 homeBtn.addEventListener('click', function() {
     app.classList.add('hidden');
     homeScreen.classList.remove('hidden');
@@ -305,6 +375,26 @@ function getSectionForPage(pageNum) {
 // ── Render Sections ───────────────────────────────────────────────────────────
 function renderSections() {
     sectionsList.innerHTML = '';
+    // Add feature buttons at top of side panel
+    var featureDiv = document.getElementById('side-feature-btns');
+    if (!featureDiv) {
+        featureDiv = document.createElement('div');
+        featureDiv.id = 'side-feature-btns';
+        featureDiv.style.cssText = 'padding:12px;border-bottom:1px solid #2a2a2a;';
+        featureDiv.innerHTML = '<div style="margin-bottom:10px;">' +
+            '<div style="font-size:0.7rem;color:#888;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px;">📋 Summarised Notes</div>' +
+            '<div style="display:flex;gap:6px;">' +
+            '<button onclick="generateStudyGuide(\'pdf\')" style="flex:1;background:#1e1e1e;border:1px solid #2a2a2a;color:#e8e8e8;padding:6px;border-radius:6px;cursor:pointer;font-size:0.75rem;">Entire PDF</button>' +
+            '<button onclick="generateStudyGuide(\'notes\')" style="flex:1;background:#1e1e1e;border:1px solid #2a2a2a;color:#e8e8e8;padding:6px;border-radius:6px;cursor:pointer;font-size:0.75rem;">Notes & Questions</button>' +
+            '</div></div>' +
+            '<div>' +
+            '<div style="font-size:0.7rem;color:#888;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px;">🧠 Quiz Me</div>' +
+            '<div style="display:flex;gap:6px;">' +
+            '<button onclick="generateQuiz(\'pdf\')" style="flex:1;background:#1e1e1e;border:1px solid #2a2a2a;color:#e8e8e8;padding:6px;border-radius:6px;cursor:pointer;font-size:0.75rem;">Entire PDF</button>' +
+            '<button onclick="generateQuiz(\'notes\')" style="flex:1;background:#1e1e1e;border:1px solid #2a2a2a;color:#e8e8e8;padding:6px;border-radius:6px;cursor:pointer;font-size:0.75rem;">Notes & Questions</button>' +
+            '</div></div>';
+        sectionsList.parentElement.insertBefore(featureDiv, sectionsList);
+    }
     state.sections.forEach(function(section) {
         var sectionEl = document.createElement('div');
         sectionEl.className = 'section-item';

@@ -318,4 +318,95 @@ async def get_pdf_file(pdf_id: str):
             raise HTTPException(status_code=404, detail="PDF file not found")
     return FileResponse(file_path, media_type="application/pdf")
 
+
+@app.get("/export/{pdf_id}")
+async def export_notes(pdf_id: str):
+    pdf = fs_get("pdfs", pdf_id) or {}
+    sections = fs_query("sections", "pdf_id", pdf_id)
+    sections.sort(key=lambda x: x["section_order"])
+    output = f"# Study Notes\n## {pdf.get('original_name', 'PDF')}\n\n"
+    for section in sections:
+        cards = fs_query("cards", "section_id", section["id"])
+        if not cards:
+            continue
+        output += f"## {section['title']} (Pages {section['page_start']}-{section['page_end']})\n\n"
+        for card in cards:
+            messages = fs_query("messages", "card_id", card["id"])
+            if card["card_type"] == "note":
+                output += f"### 📝 Note (Page {card['page_number']})\n"
+                output += f"{card['selected_text']}\n\n"
+            else:
+                output += f"### ❓ Question (Page {card['page_number']})\n"
+                for msg in messages:
+                    if msg["role"] == "user":
+                        output += f"**Q:** {msg['content']}\n\n"
+                    else:
+                        output += f"**A:** {msg['content']}\n\n"
+    from fastapi.responses import PlainTextResponse
+    return PlainTextResponse(output, headers={
+        "Content-Disposition": f"attachment; filename=notes.md"
+    })
+
+class StudyGuideRequest(BaseModel):
+    pdf_id: str
+
+@app.post("/study-guide")
+async def generate_study_guide(req: StudyGuideRequest):
+    sections = fs_query("sections", "pdf_id", req.pdf_id)
+    sections.sort(key=lambda x: x["section_order"])
+    all_notes = ""
+    for section in sections:
+        cards = fs_query("cards", "section_id", section["id"])
+        for card in cards:
+            messages = fs_query("messages", "card_id", card["id"])
+            all_notes += f"Section: {section['title']}\n"
+            if card["card_type"] == "note":
+                all_notes += f"Note: {card['selected_text']}\n"
+            else:
+                for msg in messages:
+                    if msg["role"] == "user":
+                        all_notes += f"Q: {msg['content']}\n"
+                    elif msg["role"] == "assistant":
+                        all_notes += f"A: {msg['content']}\n"
+            all_notes += "\n"
+    if not all_notes.strip():
+        return {"guide": "No notes or questions saved yet. Add some cards first!"}
+    guide = await orchestrator.answer_question(
+        section_title="",
+        selected_text="",
+        page_context="",
+        question=f"Create a comprehensive study guide from these student notes and Q&A. Organize by topic, highlight key concepts, and add a summary at the end.\n\nStudent notes:\n{all_notes}"
+    )
+    return {"guide": guide}
+
+class QuizRequest(BaseModel):
+    pdf_id: str
+
+@app.post("/quiz")
+async def generate_quiz(req: QuizRequest):
+    sections = fs_query("sections", "pdf_id", req.pdf_id)
+    sections.sort(key=lambda x: x["section_order"])
+    all_content = ""
+    for section in sections:
+        cards = fs_query("cards", "section_id", section["id"])
+        for card in cards:
+            messages = fs_query("messages", "card_id", card["id"])
+            all_content += f"Topic: {section['title']}\n"
+            if card["card_type"] == "note":
+                all_content += f"Content: {card['selected_text']}\n"
+            else:
+                for msg in messages:
+                    if msg["role"] == "assistant":
+                        all_content += f"Key info: {msg['content']}\n"
+            all_content += "\n"
+    if not all_content.strip():
+        return {"quiz": "No notes or questions saved yet. Add some cards first!"}
+    quiz = await orchestrator.answer_question(
+        section_title="",
+        selected_text="",
+        page_context="",
+        question=f"Generate a quiz with 5 multiple choice questions based on these study notes. For each question provide: the question, 4 options (A/B/C/D), and the correct answer. Format clearly.\n\nContent:\n{all_content}"
+    )
+    return {"quiz": quiz}
+
 app.mount("/", StaticFiles(directory=os.path.join(os.path.dirname(__file__), "..", "..", "frontend"), html=True), name="frontend")
