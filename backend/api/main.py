@@ -10,6 +10,7 @@ from pydantic import BaseModel
 from typing import Optional
 from dotenv import load_dotenv
 from google.cloud import firestore
+from google.cloud import storage as gcs
 import sys
 sys.path.insert(0, os.path.dirname(__file__))
 from orchestrator import orchestrator
@@ -23,6 +24,8 @@ app.add_middleware(
 
 # ── Firestore client ──────────────────────────────────────────────────────────
 db = firestore.Client(project="noteup2", database="noteup-db")
+gcs_client = gcs.Client(project="noteup2")
+GCS_BUCKET = "noteup2-pdfs"
 
 UPLOAD_DIR = "uploads"
 os.makedirs(UPLOAD_DIR, exist_ok=True)
@@ -103,6 +106,10 @@ async def upload_pdf(file: UploadFile = File(...)):
     # ── New PDF — process it ──────────────────────────────────────────────────
     with open(file_path, "wb") as f:
         f.write(content)
+    # Also upload to GCS for persistence
+    bucket = gcs_client.bucket(GCS_BUCKET)
+    blob = bucket.blob(f"{pdf_id}.pdf")
+    blob.upload_from_string(content, content_type="application/pdf")
 
     doc         = fitz.open(file_path)
     total_pages = len(doc)
@@ -154,7 +161,12 @@ async def upload_pdf(file: UploadFile = File(...)):
 async def get_page_image(pdf_id: str, page_number: int):
     file_path = os.path.join(UPLOAD_DIR, f"{pdf_id}.pdf")
     if not os.path.exists(file_path):
-        raise HTTPException(status_code=404, detail="PDF not found")
+        try:
+            bucket = gcs_client.bucket(GCS_BUCKET)
+            blob = bucket.blob(f"{pdf_id}.pdf")
+            blob.download_to_filename(file_path)
+        except Exception:
+            raise HTTPException(status_code=404, detail="PDF not found")
 
     doc = fitz.open(file_path)
     if page_number < 1 or page_number > len(doc):
@@ -297,7 +309,13 @@ async def get_sections(pdf_id: str):
 async def get_pdf_file(pdf_id: str):
     file_path = os.path.join(UPLOAD_DIR, f"{pdf_id}.pdf")
     if not os.path.exists(file_path):
-        raise HTTPException(status_code=404, detail="PDF file not found")
+        # Try to download from GCS
+        try:
+            bucket = gcs_client.bucket(GCS_BUCKET)
+            blob = bucket.blob(f"{pdf_id}.pdf")
+            blob.download_to_filename(file_path)
+        except Exception:
+            raise HTTPException(status_code=404, detail="PDF file not found")
     return FileResponse(file_path, media_type="application/pdf")
 
 app.mount("/", StaticFiles(directory=os.path.join(os.path.dirname(__file__), "..", "..", "frontend"), html=True), name="frontend")

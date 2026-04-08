@@ -310,7 +310,7 @@ function renderSections() {
         sectionEl.className = 'section-item';
         var titleEl = document.createElement('div');
         titleEl.className = 'section-title';
-        titleEl.innerHTML = section.title + ' <span class="section-pages">pp. ' + section.page_start + '-' + section.page_end + '</span>';
+        titleEl.innerHTML = section.title + ' <span class="section-pages">p.' + section.page_start + '-' + section.page_end + '</span>';
         titleEl.addEventListener('click', function() { scrollToPage(section.page_start); });
         var cardsList = document.createElement('div');
         cardsList.className = 'cards-list';
@@ -488,7 +488,47 @@ function openThreadWithMessages(card, messages) {
     showThreadView();
     followUpInput.value = '';
     var threadInput = document.querySelector('.thread-input');
-    if (threadInput) threadInput.style.display = card.card_type === 'note' ? 'none' : 'flex';
+    if (threadInput) threadInput.style.display = 'none';
+    var editArea = document.getElementById('note-edit-area');
+    if (editArea) editArea.remove();
+    if (card.card_type === 'note') {
+        var editDiv = document.createElement('div');
+        editDiv.id = 'note-edit-area';
+        editDiv.style.cssText = 'padding:12px;border-top:1px solid #2a2a2a;';
+        editDiv.innerHTML = '<textarea id="note-edit-input" style="width:100%;background:#1e1e1e;border:1px solid #2a2a2a;border-radius:8px;color:#e8e8e8;padding:10px;font-size:0.85rem;resize:vertical;min-height:80px;font-family:inherit;box-sizing:border-box;" placeholder="Edit your note..."></textarea><div style="display:flex;gap:8px;margin-top:8px;"><button id="note-simplify-btn" style="flex:1;background:#1e1e1e;border:1px solid #2a2a2a;color:#e8e8e8;padding:8px;border-radius:8px;cursor:pointer;font-size:0.8rem;">✨ Simplify</button><button id="note-save-btn" style="flex:1;background:#6c63ff;border:none;color:white;padding:8px;border-radius:8px;cursor:pointer;font-size:0.8rem;font-weight:600;">Save Note</button></div>';
+        threadMessages.parentElement.appendChild(editDiv);
+        var noteInput = document.getElementById('note-edit-input');
+        var currentNote = '';
+        if (threadMessages.children.length > 0) {
+            currentNote = threadMessages.children[0].textContent;
+        }
+        noteInput.value = currentNote;
+        document.getElementById('note-simplify-btn').addEventListener('click', async function() {
+            var txt = noteInput.value.trim();
+            if (!txt) return;
+            this.textContent = 'Simplifying...';
+            this.disabled = true;
+            try {
+                var r = await fetch(API + '/simplify', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({note_text: txt})});
+                var d = await r.json();
+                noteInput.value = d.simplified;
+            } catch(e) { console.error(e); }
+            finally { this.textContent = '✨ Simplify'; this.disabled = false; }
+        });
+        document.getElementById('note-save-btn').addEventListener('click', async function() {
+            var txt = noteInput.value.trim();
+            if (!txt) return;
+            this.textContent = 'Saving...';
+            this.disabled = true;
+            try {
+                await fetch(API + '/message', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({card_id: card.id, question: txt})});
+                threadMessages.innerHTML = '<div class="message message-user">' + txt + '</div>';
+            } catch(e) { console.error(e); }
+            finally { this.textContent = 'Save Note'; this.disabled = false; }
+        });
+    } else {
+        if (threadInput) threadInput.style.display = 'flex';
+    }
     threadMessages.scrollTop = threadMessages.scrollHeight;
 }
 

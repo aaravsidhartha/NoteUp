@@ -123,7 +123,7 @@ async def run(req: AnswerRequest):
             f"{pdf_hint}"
             f"{context_block}"
             f"{history_block}"
-            f"Student's question: {req.question}"
+            f"Student's question: {req.question}\n\nIMPORTANT: If the question is not about the PDF content above, answer freely from your general knowledge. Do not say the document does not contain this information."
         )
 
         print(f"\n=== ANSWER AGENT CALLED ===")
