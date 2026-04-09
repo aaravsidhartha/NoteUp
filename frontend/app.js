@@ -168,6 +168,7 @@ async function openPdfFromLibrary(pdf) {
             document.body.appendChild(modal);
         }
     }
+        ensureModalAndExport();
         uploadStatus.textContent = '';
         await renderAllPages();
         renderSections();
@@ -213,6 +214,7 @@ pdfInput.addEventListener('change', async function(e) {
         homeScreen.classList.add('hidden');
         app.classList.remove('hidden');
         document.body.classList.remove('home-active');
+        ensureModalAndExport();
         uploadStatus.textContent = '';
         await renderAllPages();
         renderSections();
@@ -228,6 +230,25 @@ pdfInput.addEventListener('change', async function(e) {
 });
 
 // ── Render ALL pages ──────────────────────────────────────────────────────────
+
+function ensureModalAndExport() {
+  if (!document.getElementById('export-btn')) {
+    var toolbar = document.querySelector('.pdf-toolbar');
+    var btnGroup = document.createElement('div');
+    btnGroup.style.cssText = 'display:flex;gap:6px;margin-left:auto;';
+    btnGroup.innerHTML = '<button id="export-btn" onclick="exportNotes()" style="padding:6px 14px;background:#6c63ff;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:13px;">Export Notes</button>';
+    toolbar.appendChild(btnGroup);
+  }
+  if (!document.getElementById('feature-modal')) {
+    var modal = document.createElement('div');
+    modal.id = 'feature-modal';
+    modal.className = 'hidden';
+    modal.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.7);z-index:99999;display:flex;align-items:center;justify-content:center;';
+    modal.innerHTML = '<div style="background:#1a1a2e;border-radius:12px;padding:32px;max-width:700px;width:90%;max-height:80vh;overflow-y:auto;position:relative;"><button onclick="document.getElementById(&quot;feature-modal&quot;).classList.add(&quot;hidden&quot;)" style="position:absolute;top:12px;right:16px;background:none;border:none;color:#fff;font-size:20px;cursor:pointer;">✕</button><h2 id="modal-title" style="margin:0 0 16px;color:#fff;"></h2><div id="modal-body" style="color:#ccc;line-height:1.6;"></div></div>';
+    document.body.appendChild(modal);
+  }
+}
+
 async function renderAllPages() {
     var container = document.getElementById('pdf-container');
     container.innerHTML = '<div style="color:#888;text-align:center;padding:40px;">Loading pages...</div>';
